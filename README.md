@@ -17,8 +17,10 @@ Cross-platform · Interactive · Transparent security
 
 ![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Version](https://img.shields.io/badge/version-0.1.0-orange)
+![Version](https://img.shields.io/badge/version-1.0.0-orange)
 ![Platform](https://img.shields.io/badge/platform-win%20%7C%20mac%20%7C%20linux-lightgrey)
+[![Security Policy](https://img.shields.io/badge/security-policy-green)](https://github.com/kevinbarfleur/lockr/security/policy)
+![Encryption](https://img.shields.io/badge/encryption-AES--256--GCM-blueviolet)
 
 </div>
 
@@ -110,7 +112,7 @@ That's it. The `lockr` command is now available **everywhere** in your terminal:
 
 ```bash
 lockr --version
-# 0.1.0
+# 1.0.0
 ```
 
 > **How does `npm link` work?** It creates a symbolic link from your global `node_modules` to your local project. Any time you modify the source code and run `pnpm build`, the changes are immediately available in the `lockr` command — no need to reinstall.
@@ -173,7 +175,7 @@ You'll see the ASCII banner and a guided menu:
   ╚══════╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝
   Folder encryption made simple.
 
-  v0.1.0 — Type lockr --help for non-interactive usage.
+  v1.0.0 — Type lockr --help for non-interactive usage.
 
 ? What would you like to do?
 ❯ Lock    — Hide or encrypt a folder
@@ -614,7 +616,7 @@ lockr follows a strict **safety-first principle**:
 - If deletion fails partway through, the entry is marked as `partial` — you have both the vault and the remaining originals
 - The `open` command always completes the unlock before attempting a relock
 
-That said, this is v0.1.0 — **always keep backups of critical data**.
+That said, this is v1.0.0 — **always keep backups of critical data**.
 
 ### How fast is encrypt mode?
 

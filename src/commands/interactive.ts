@@ -15,7 +15,7 @@ import type { RegistryEntry } from '../types.js'
 export async function interactiveMode(): Promise<void> {
   console.log(BANNER)
   console.log(
-    chalk.dim('  v0.1.0 — Type ') +
+    chalk.dim('  v1.0.0 — Type ') +
       chalk.cyan('lockr --help') +
       chalk.dim(' for non-interactive usage.\n'),
   )

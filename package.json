@@ -1,6 +1,6 @@
 {
   "name": "lockr-cli",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Lock and unlock folders with hide mode or AES-256-GCM encryption",
   "type": "module",
   "bin": {

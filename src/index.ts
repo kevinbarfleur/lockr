@@ -21,7 +21,7 @@ const program = new Command()
 program
   .name('lockr')
   .description('Lock and unlock folders with hide mode or AES-256-GCM encryption')
-  .version('0.1.0')
+  .version('1.0.0')
   .addHelpText('before', BANNER)
 
 program
