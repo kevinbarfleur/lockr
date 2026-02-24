@@ -39,8 +39,23 @@ Two locking modes are available:
 
 ---
 
+## Platform Support
+
+| OS | Supported | Tested | Hide mode | Encrypt mode | Notes |
+|----|:---------:|:------:|-----------|--------------|-------|
+| **Windows 10/11** | Yes | **Yes** | `attrib +h +s` | AES-256-GCM | Primary dev/test platform. EBUSY fallback for CWD lock. |
+| **macOS** | Yes | No | `chflags hidden` | AES-256-GCM | Needs community testing. |
+| **Linux** | Yes | No | Dot-prefix | AES-256-GCM | Needs community testing. |
+
+> **Tested on:** Windows 11 Home (10.0.26200), Node.js 22.x, pnpm 10.x
+>
+> If you test on macOS or Linux, please [open an issue](https://github.com/kevinbarfleur/lockr/issues) with your results!
+
+---
+
 ## Table of Contents
 
+- [Platform Support](#platform-support)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Commands](#commands)
