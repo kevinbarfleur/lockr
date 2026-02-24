@@ -90,7 +90,14 @@ async function lockHide(
 
   // Generate hidden name and rename
   const hiddenName = generateHiddenName()
-  const hiddenPath = await hideFolder(folderPath, hiddenName)
+  let hiddenPath: string
+  try {
+    hiddenPath = await hideFolder(folderPath, hiddenName)
+  } catch (err) {
+    spinner.stop()
+    error(err instanceof Error ? err.message : String(err))
+    process.exit(1)
+  }
 
   // Register
   await addEntry({
