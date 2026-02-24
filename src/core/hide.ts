@@ -11,6 +11,21 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+/**
+ * Move all items from src into dest (which must already exist).
+ * Works even when src is the CWD of the shell, because we're moving
+ * children — not renaming the directory itself.
+ */
+async function moveContents(src: string, dest: string): Promise<void> {
+  const entries = await fs.readdir(src, { withFileTypes: true })
+  for (const entry of entries) {
+    await fs.rename(
+      path.join(src, entry.name),
+      path.join(dest, entry.name),
+    )
+  }
+}
+
 export async function hideFolder(
   folderPath: string,
   hiddenName: string,
@@ -18,48 +33,50 @@ export async function hideFolder(
   const parentDir = path.dirname(folderPath)
   const hiddenPath = path.join(parentDir, hiddenName)
 
-  // On Windows, if our process CWD is the target folder, the rename
-  // will fail with EBUSY. Move CWD to the parent directory first.
+  // If our process CWD is the target folder, move to parent first
+  // so Node itself doesn't hold a lock on it.
   const cwd = path.resolve(process.cwd())
   const target = path.resolve(folderPath)
-  const needsCdBack = cwd === target || cwd.startsWith(target + path.sep)
-
-  if (needsCdBack) {
+  if (cwd === target || cwd.startsWith(target + path.sep)) {
     process.chdir(parentDir)
   }
 
+  // Fast path: try a direct rename (works when nothing holds a lock)
   try {
     await fs.rename(folderPath, hiddenPath)
   } catch (err: unknown) {
     const code = (err as NodeJS.ErrnoException).code
+    if (code !== 'EBUSY' && code !== 'EPERM') throw err
 
-    if (code === 'EBUSY' || code === 'EPERM') {
-      // Retry once after a short delay (transient locks from indexers, antivirus, etc.)
-      await sleep(500)
+    // Retry once after a short delay (antivirus, indexers…)
+    await sleep(500)
+    try {
+      await fs.rename(folderPath, hiddenPath)
+    } catch (retryErr: unknown) {
+      const retryCode = (retryErr as NodeJS.ErrnoException).code
+      if (retryCode !== 'EBUSY' && retryCode !== 'EPERM') throw retryErr
+
+      // Fallback: the parent shell still holds a CWD lock on the folder.
+      // We can't rename the folder, but we CAN move its contents out.
+      // Create the hidden folder, move everything into it, then try to
+      // remove the now-empty original (best-effort).
+      await fs.mkdir(hiddenPath, { recursive: true })
+      await moveContents(folderPath, hiddenPath)
+
+      // Try to remove the empty shell — will fail if a process CWD is
+      // still pointing at it, and that's fine.
       try {
-        await fs.rename(folderPath, hiddenPath)
-      } catch (retryErr: unknown) {
-        const retryCode = (retryErr as NodeJS.ErrnoException).code
-        if (retryCode === 'EBUSY') {
-          throw new Error(
-            `Cannot lock: the folder is in use by another process.\n` +
-            `  This usually happens when your terminal is open inside the folder.\n\n` +
-            `  Fix: run ${path.basename(folderPath) === path.basename(cwd) ? '"cd .."' : '"cd" out of the folder'} first, then retry:\n\n` +
-            `    cd ..\n` +
-            `    lockr lock ${path.basename(folderPath)}`,
-          )
-        }
-        throw retryErr
+        await fs.rmdir(folderPath)
+      } catch {
+        // Leave the empty folder. It contains nothing.
       }
-    } else {
-      throw err
     }
   }
 
   try {
     hideWithOsAttributes(hiddenPath)
   } catch {
-    // Non-fatal: folder is already renamed/hidden by dot-prefix
+    // Non-fatal: dot-prefix already hides on macOS/Linux
   }
 
   return hiddenPath
@@ -75,5 +92,23 @@ export async function unhideFolder(
     // Non-fatal
   }
 
-  await fs.rename(hiddenPath, originalPath)
+  // Fast path: direct rename
+  try {
+    await fs.rename(hiddenPath, originalPath)
+    return
+  } catch (err: unknown) {
+    const code = (err as NodeJS.ErrnoException).code
+    if (code !== 'EBUSY' && code !== 'EPERM') throw err
+  }
+
+  // Fallback: original empty folder may still exist (CWD lock).
+  // Move contents back into it.
+  await fs.mkdir(originalPath, { recursive: true })
+  await moveContents(hiddenPath, originalPath)
+
+  try {
+    await fs.rmdir(hiddenPath)
+  } catch {
+    // Best-effort
+  }
 }
