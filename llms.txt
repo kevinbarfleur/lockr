@@ -1,0 +1,45 @@
+# lockr
+
+> lockr is a cross-platform CLI tool that locks and unlocks folders from the terminal. Two modes: hide (instant, renames and hides folder with OS attributes) and encrypt (AES-256-GCM, compresses and encrypts into a .vault binary file). Built with Node.js/TypeScript, uses Commander for CLI, Inquirer for interactive prompts. Replaces FolderGuard.
+
+lockr is written in TypeScript (ESM modules), built with tsup, and runs on Node.js >= 18. The CLI entry point is `src/index.ts` which dispatches to either interactive mode (no args) or Commander subcommands (lock, unlock, open, status, list). The project uses pnpm as package manager.
+
+Hide mode renames the folder to `.lockr-<random>` in the same parent directory and applies OS-specific hidden attributes (Windows: `attrib +h +s`, macOS: `chflags hidden`, Linux: dot-prefix). A 3-level fallback handles Windows EBUSY errors: direct rename → retry after 500ms → move contents individually. Password hash (scrypt) is stored in a JSON registry at `%APPDATA%\lockr\registry.json` (Windows) or `~/.lockr/registry.json` (macOS) or `$XDG_CONFIG_HOME/lockr/registry.json` (Linux).
+
+Encrypt mode compresses the folder with tar+gzip, encrypts with AES-256-GCM (scrypt key derivation, N=2^17, r=8, p=1), writes a binary .vault file (magic: LKVT), then securely deletes originals (2-pass overwrite). The vault format has a fixed header (magic, version, salt, IV, auth tag, original size, timestamp, metadata length) followed by JSON metadata (unencrypted) and the encrypted payload.
+
+Currently tested on Windows 11 only. macOS and Linux support is implemented but untested.
+
+## Source Code
+
+- [src/index.ts](https://github.com/kevinbarfleur/lockr/blob/main/src/index.ts): CLI entry point — interactive mode (no args) or Commander subcommands
+- [src/types.ts](https://github.com/kevinbarfleur/lockr/blob/main/src/types.ts): Constants (vault magic, crypto params), interfaces (VaultMetadata, VaultHeader, RegistryEntry, Registry, FolderStats)
+- [src/commands/lock.ts](https://github.com/kevinbarfleur/lockr/blob/main/src/commands/lock.ts): Lock command — dispatches to lockHide() or lockEncrypt() based on --encrypt flag
+- [src/commands/unlock.ts](https://github.com/kevinbarfleur/lockr/blob/main/src/commands/unlock.ts): Unlock command — auto-detects mode from registry, handles hide and encrypt, supports direct vault unlock
+- [src/commands/open.ts](https://github.com/kevinbarfleur/lockr/blob/main/src/commands/open.ts): Open command — unlock, open in file explorer, wait for Enter, relock with same password
+- [src/commands/status.ts](https://github.com/kevinbarfleur/lockr/blob/main/src/commands/status.ts): Status command — checks registry and vault files
+- [src/commands/list.ts](https://github.com/kevinbarfleur/lockr/blob/main/src/commands/list.ts): List command — shows all locked folders, supports --json
+- [src/commands/interactive.ts](https://github.com/kevinbarfleur/lockr/blob/main/src/commands/interactive.ts): Interactive mode — guided menu with Inquirer select/input/password prompts
+- [src/core/hide.ts](https://github.com/kevinbarfleur/lockr/blob/main/src/core/hide.ts): Hide mode logic — hideFolder() with 3-level EBUSY fallback, unhideFolder(), moveContents(), generateHiddenName()
+- [src/core/crypto.ts](https://github.com/kevinbarfleur/lockr/blob/main/src/core/crypto.ts): Crypto — deriveKey (scrypt), encryptBuffer/decryptBuffer (AES-256-GCM), secureDelete (2-pass overwrite), secureDeleteFolder
+- [src/core/archive.ts](https://github.com/kevinbarfleur/lockr/blob/main/src/core/archive.ts): Archive — compressFolder (tar.gz), extractArchive, getFolderStats (recursive walk)
+- [src/core/vault.ts](https://github.com/kevinbarfleur/lockr/blob/main/src/core/vault.ts): Vault binary format — writeVault, readVaultHeader, readVaultPayload
+- [src/utils/platform.ts](https://github.com/kevinbarfleur/lockr/blob/main/src/utils/platform.ts): Platform detection — hideWithOsAttributes, unhideWithOsAttributes, openInExplorer (win32/darwin/linux)
+- [src/utils/password.ts](https://github.com/kevinbarfleur/lockr/blob/main/src/utils/password.ts): Password prompts — promptPassword, promptPasswordWithConfirm (3 retries), promptPasswordWithRetry, hashPassword, verifyPassword
+- [src/utils/config.ts](https://github.com/kevinbarfleur/lockr/blob/main/src/utils/config.ts): Registry — getConfigDir (per-OS), loadRegistry, saveRegistry, addEntry, removeEntry, findEntry, updateEntryStatus
+- [src/utils/ui.ts](https://github.com/kevinbarfleur/lockr/blob/main/src/utils/ui.ts): UI helpers — ASCII banner, createSpinner (ora), formatSize, success/error/warn/info chalk helpers
+
+## Documentation
+
+- [README.md](https://github.com/kevinbarfleur/lockr/blob/main/README.md): Full documentation — installation, commands, security model, vault format, cryptographic parameters, threat model, FAQ
+- [tests/windows-scenarios.md](https://github.com/kevinbarfleur/lockr/blob/main/tests/windows-scenarios.md): 123 Windows test scenarios covering paths, hide/encrypt modes, CWD locks, corruption, interruptions, edge cases
+
+## Configuration
+
+- [package.json](https://github.com/kevinbarfleur/lockr/blob/main/package.json): Node.js project config — bin: lockr, type: module, dependencies (commander, chalk, ora, tar, @inquirer/prompts)
+- [tsconfig.json](https://github.com/kevinbarfleur/lockr/blob/main/tsconfig.json): TypeScript config — strict, ES2022, ESNext modules, bundler resolution
+- [tsup.config.ts](https://github.com/kevinbarfleur/lockr/blob/main/tsup.config.ts): Build config — ESM, node18 target, shebang banner
+
+## Optional
+
+- [.gitignore](https://github.com/kevinbarfleur/lockr/blob/main/.gitignore): Ignores node_modules/, dist/, *.tgz
